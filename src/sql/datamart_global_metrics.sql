@@ -8,11 +8,11 @@
 --     у операции в staging несколько строк — по одной на каждый статус;
 --   * сумма — по модулю (исходящие переводы в источнике отрицательные), из минимальных
 --     единиц валюты (центы, копейки) переводится в основные и по курсу дня — в доллары (код 420);
---   * аккаунт клиента — account_number_to: в account_number_from во всех транзакциях стоит
---     один из двух внутренних бухгалтерских счетов компании (903810, 914810), по нему
---     клиентов не посчитать;
+--   * аккаунт, совершивший транзакцию, — отправитель account_number_from;
+--   * международный перевод записан сервисами обеих стран — одна операция встречается в двух
+--     валютах; в разрезе валюты она считается один раз, в каждой из своих валют;
 --   * cnt_transactions — число операций; avg_transactions_per_account — среднее число
---     операций на аккаунт клиента; cnt_accounts_make_transactions — уникальные аккаунты клиентов.
+--     операций на аккаунт-отправитель; cnt_accounts_make_transactions — уникальные отправители.
 
 DELETE FROM VT260725214E22__DWH.global_metrics
 WHERE date_update = CAST(:day AS date);
@@ -28,7 +28,7 @@ INSERT INTO VT260725214E22__DWH.global_metrics (
 WITH done_transactions AS (
     SELECT DISTINCT
         operation_id,
-        account_number_to,
+        account_number_from,
         currency_code,
         amount
     FROM VT260725214E22__STAGING.transactions
@@ -55,8 +55,8 @@ SELECT
     )                                         AS amount_total,
     COUNT(DISTINCT t.operation_id)            AS cnt_transactions,
     COUNT(DISTINCT t.operation_id)
-        / COUNT(DISTINCT t.account_number_to) AS avg_transactions_per_account,
-    COUNT(DISTINCT t.account_number_to)       AS cnt_accounts_make_transactions
+        / COUNT(DISTINCT t.account_number_from) AS avg_transactions_per_account,
+    COUNT(DISTINCT t.account_number_from)     AS cnt_accounts_make_transactions
 FROM done_transactions t
 LEFT JOIN usd_rates r ON r.currency_code = t.currency_code
 GROUP BY t.currency_code;
